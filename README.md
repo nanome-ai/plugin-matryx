@@ -1,13 +1,11 @@
-# Nanome - Realtime Scoring
+# Nanome - Matryx
 
-Displays the docking score of all molecules in the workspace, in realtime.
-
-Runs only on Linux for now
+Plugin to interface with the Matryx Platform.
 
 ### Installation
 
 ```sh
-$ pip install nanome-realtime-scoring
+$ pip install nanome-matryx
 ```
 
 ### Usage
@@ -15,15 +13,16 @@ $ pip install nanome-realtime-scoring
 To start the plugin:
 
 ```sh
-$ nanome-realtime-scoring -a plugin_server_address
+$ nanome-matryx -a plugin_server_address
 ```
 
 In Nanome:
 
 - Activate Plugin
-- In the plugin window, select a receptor, and start scoring
-- Plugin will display a list of all other complexes, with their docking score
-- Moving a complex around will update its score
+- Select Account
+- Do stuff
+
+... to be continued ...
 
 ### License
 
