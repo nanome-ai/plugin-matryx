@@ -1,3 +1,5 @@
+from functools import partial
+
 import nanome
 from nanome.util import Logs
 import utils
@@ -16,7 +18,7 @@ class Matryx(nanome.PluginInstance):
         self._menu_history = []
         self._account = None
 
-        self._matryx_menu = nanome.ui.Menu.io.from_json("_matryx_menu.json")
+        self._matryx_menu = nanome.ui.Menu.io.from_json("menus/matryx.json")
         menu = self._matryx_menu
 
         self._cortex = MatryxCortex('https://cortex-staging.matryx.ai')
@@ -72,11 +74,12 @@ class Matryx(nanome.PluginInstance):
     def defer(self, fn, frames):
         self._deferred.append([frames, fn])
 
-    def open_menu(self, menu):
-        if menu is not self._matryx_menu:
+    def open_menu(self, menu, history=True):
+        if menu is not self._matryx_menu and history:
             self._menu_history.append(menu)
 
         self.menu = menu
+        menu.enabled = True
         self.update_menu(self.menu)
 
     def previous_menu(self, menu=None):
@@ -84,7 +87,7 @@ class Matryx(nanome.PluginInstance):
         if len(self._menu_history) == 0:
             self.open_matryx_menu()
         else:
-            self.open_menu(self._menu_history.pop())
+            self.open_menu(self._menu_history[-1], False)
 
     def refresh_menu(self):
         self.update_menu(self.menu)
@@ -107,6 +110,7 @@ class Matryx(nanome.PluginInstance):
         self._account_blockie.add_new_image(account.blockie)
         self._account_eth.text_value = utils.truncate(self._cortex.get_eth(account.address)) + ' ETH'
         self._account_mtx.text_value = utils.truncate(self._cortex.get_mtx(account.address)) + ' MTX'
+        self._menu_history.pop()
         self.on_run()
 
     def check_account(self):
@@ -147,8 +151,8 @@ class Matryx(nanome.PluginInstance):
             clone.enabled = True
 
             btn = clone.get_content()
-            btn.tournament = tournament
-            btn.register_pressed_callback(self._menu_tournament.load_tournament)
+            callback = partial(self._menu_tournament.load_tournament, tournament['address'])
+            btn.register_pressed_callback(callback)
 
             title = clone.find_node('Title').get_content()
             text = tournament['title']

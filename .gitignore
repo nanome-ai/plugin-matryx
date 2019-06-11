@@ -2,4 +2,5 @@
 .vscode/
 __pycache__
 nanome_matryx/blockies/*
+nanome_matryx/ipfs_cache/*
 *.pyc

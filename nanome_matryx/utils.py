@@ -1,31 +1,36 @@
 import re
 from datetime import datetime, timezone
 from nanome.util import Logs
+from math import inf
 
 def short_address(address):
     return address[:6] + '...' + address[-4:]
 
 def time_until(the_time):
-    time_difference = the_time - datetime.now(timezone.utc)
-    time = time_difference.total_seconds()
+    time = (the_time - datetime.now(timezone.utc)).total_seconds()
 
     if time < 0:
         return ''
 
-    unitlabels = ["s", "m", "h", "d", "w", "y"]
-    unitamounts = [60, 60, 24, 7, 52]
+    units = [(60, "s"), (60, "m"), (24, "h"), (7, "d"), (52, "w"), (inf, "y")]
+
+    for amount, label in units:
+        if time < amount:
+            return str(int(time)) + label
+        time = time / amount
+
+def file_size(size):
+    units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
 
     i = 0
-    for x in unitlabels:
-        if time < unitamounts[i]:
-            break
-        time = time / unitamounts[i]
+    while size > 1024:
+        size = size / 1024
         i += 1
 
-    return str(int(time)) + unitlabels[i]
+    return truncate(size) + units[i]
 
-def truncate(num):
-    val = '%.2f' % num
+def truncate(num, precision=2):
+    val = '%.*f' % (precision, num)
     return re.sub('\.?0+$', '', val)
 
 def ellipsis(text, length=55):

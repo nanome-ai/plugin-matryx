@@ -1,4 +1,7 @@
 import requests
+from functools import partial
+from pdf2image import convert_from_path
+
 import nanome
 import utils
 from nanome.util import Logs
@@ -7,31 +10,47 @@ class FilesMenu:
     def __init__(self, _plugin, on_close):
         self._plugin = _plugin
 
-        menu = nanome.ui.Menu.io.from_json('_files_menu.json')
-        menu.register_closed_callback(on_close)
+        menu_files = nanome.ui.Menu.io.from_json('menus/files.json')
+        menu_files.register_closed_callback(on_close)
+        self._menu_files = menu_files
 
-        self._prefab_file_item = nanome.ui.LayoutNode()
-        child = self._prefab_file_item.create_child_node()
-        child.forward_dist = 0.002
-        child.add_new_button()
+        self._prefab_file_item = menu_files.root.find_node('File Item Prefab')
+        self._files_list = menu_files.root.find_node('List').get_content()
 
-        self._files_list = menu.root.find_node('List').get_content()
+        self._menu_view_file = nanome.ui.Menu.io.from_json('menus/view_file.json')
+        self._menu_view_file.register_closed_callback(on_close)
 
-        self._menu = menu
+        self._file_view = self._menu_view_file.root.find_node('File View')
 
-    def load_files(self, button):
-        ipfs_hash = button.ipfs_hash
-
-        files = requests.get('https://ipfs.infura.io:5001/api/v0/object/get?arg=' + ipfs_hash).json()
-        files = files['Links']
+    def load_files(self, ipfs_hash, button):
+        files = self._plugin._cortex.ipfs_list_dir(ipfs_hash)
 
         self._files_list.items = []
 
         for file in files:
             clone = self._prefab_file_item.clone()
-            btn = clone.get_children()[0].get_content()
-            btn.set_all_text(file['Name'])
-            # btn.register_pressed_callback()
+
+            btn = clone.get_content()
+            btn.register_pressed_callback(partial(self.view_file, file))
+
+            clone.find_node('Name').get_content().text_value = file['Name']
+            clone.find_node('Size').get_content().text_value = utils.file_size(file['Size'])
             self._files_list.items.append(clone)
 
-        self._plugin.open_menu(self._menu)
+        self._plugin.open_menu(self._menu_files)
+
+    def view_file(self, file, button):
+        ext = file['Name'].split('.')[-1] # png, json, etc.
+
+        supported_files = ['jpg', 'jpeg', 'png', 'txt', 'rtf']
+        if ext in supported_files:
+            path = self._plugin._cortex.ipfs_download_file(file['Hash'])
+
+        if ext in ['jpg', 'jpeg', 'png']:
+            self._file_view.add_new_image(path)
+        elif ext in ['txt', 'rtf']:
+            self._file_view.add_new_label()
+            self._file_view.get_content().text_value = self._plugin._cortex.ipfs_get_file_contents(file['Hash'])
+        # elif ext == 'pdf':
+
+        self._plugin.open_menu(self._menu_view_file)
