@@ -39,6 +39,14 @@ class MatryxCortex():
         response = requests.post(self._url + '/upload/json', json=json)
         return response.json()['data']['hash']
 
+    def upload_files(self, paths):
+        files = []
+        for path in paths:
+            files.append(("files", open(path, 'rb')))
+
+        response = requests.post(self._url + '/upload/files', files=files)
+        return response.json()['data']['hash']
+
     def get_json(self, path, params=None):
         json = requests.get(self._url + path, params).json()
         return json['data']

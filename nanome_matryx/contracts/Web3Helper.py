@@ -1,5 +1,7 @@
+from nanome.util import Logs
+
 from time import sleep
-from web3 import Web3, HTTPProvider
+from web3 import Web3, HTTPProvider, exceptions
 
 from contracts.MatryxToken import MatryxToken
 
@@ -16,6 +18,12 @@ class Web3Helper():
 
     def account_from_key(self, private_key):
         return self._web3.eth.account.privateKeyToAccount(private_key)
+
+    def solidity_sha3(self, types, values):
+        for i, value in enumerate(values):
+            if types[i] == 'address':
+                values[i] = self._web3.toChecksumAddress(value)
+        return self._web3.soliditySha3(types, values).hex()
 
     def from_wei(self, amount, unit='ether'):
         return self._web3.fromWei(amount, unit)
@@ -65,8 +73,21 @@ class Web3Helper():
         return receipt.hex()
 
     def wait_for_tx(self, tx_hash, poll_interval=1):
+        tx_receipt = None
+        mined_block = None
+
         while True:
             sleep(poll_interval)
-            tx_receipt = self._web3.eth.getTransactionReceipt(tx_hash)
-            if tx_receipt:
-                return tx_receipt
+            try:
+                tx_receipt = self._web3.eth.getTransactionReceipt(tx_hash)
+                if tx_receipt:
+                    mined_block = tx_receipt.blockNumber
+                    Logs.debug('tx %s mined' % tx_hash)
+                    break
+            except exceptions.TransactionNotFound:
+                sleep(5)
+
+        while self._web3.eth.blockNumber <= mined_block:
+            sleep(5)
+
+        return tx_receipt

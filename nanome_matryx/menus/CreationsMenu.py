@@ -25,7 +25,7 @@ class CreationsMenu():
 
         for commit in commits:
             clone = self._prefab_commit_item.clone()
-            clone.find_node('Label').get_content().text_value = 'Commit ' + commit['hash'][2:8]
+            clone.find_node('Label').get_content().text_value = 'Commit ' + commit['hash'][2:10]
 
             btn = clone.get_content()
             btn.register_pressed_callback(partial(self.open_creation_menu, commit['hash']))
@@ -42,7 +42,7 @@ class CreationsMenu():
         commit = self._plugin._cortex.get_commit(commit_hash)
 
         address = self._creation_menu.root.find_node('Address').get_content()
-        address.text_value = 'Commit ' + commit['hash'][2:8]
+        address.text_value = 'Commit ' + commit['hash'][2:10]
 
         author = self._creation_menu.root.find_node('Author').get_content()
         author.text_value = 'by ' + utils.short_address(commit['owner'])
@@ -62,7 +62,7 @@ class CreationsMenu():
             item = nanome.ui.LayoutNode()
 
             btn = item.add_new_button()
-            btn.set_all_text(child['hash'][2:8])
+            btn.set_all_text(child['hash'][2:10])
             btn.register_pressed_callback(partial(self.open_creation_menu, child['hash']))
 
             child_list.items.append(item)

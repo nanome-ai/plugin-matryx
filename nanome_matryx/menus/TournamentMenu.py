@@ -151,27 +151,27 @@ class TournamentMenu():
             allowance = self._plugin._web3.get_allowance(account)
 
             if balance < entry_fee:
-                # tell user that they're fucking broke
-                pass
+                self._plugin._modal.show_error('Error: insufficient MTX balance')
+                return
             elif allowance < entry_fee:
                 if allowance != 0:
-                    tx = token.approve(self._web3._platform.address, 0)
-                    Logs.debug('reset allowance tx', tx)
-                    self._plugin._web3.wait_for_tx(tx)
+                    tx_hash = token.approve(self._web3._platform.address, 0)
+                    Logs.debug('reset allowance tx', tx_hash)
+                    self._plugin._web3.wait_for_tx(tx_hash)
 
-                tx = token.approve(self._web3._platform.address, entry_fee)
-                Logs.debug('set allowance tx', tx)
-                self._plugin._web3.wait_for_tx(tx)
+                tx_hash = token.approve(self._web3._platform.address, entry_fee)
+                Logs.debug('set allowance tx', tx_hash)
+                self._plugin._web3.wait_for_tx(tx_hash)
 
-            tx = self._contract.enter()
-            Logs.debug('enter tx', tx)
-            self._plugin._web3.wait_for_tx(tx)
+            tx_hash = self._contract.enter()
+            Logs.debug('enter tx', tx_hash)
+            self._plugin._web3.wait_for_tx(tx_hash)
 
         title = self._menu_submit.root.find_node('Title Input').get_content().input_text
         description = self._menu_submit.root.find_node('Description Input').get_content().input_text
         ipfs_hash = self._plugin._cortex.upload_json({'title': title, 'description': description})
 
-        tx = self._contract.create_submission(ipfs_hash, commit_hash)
-        Logs.debug('create tx', tx)
-        self._plugin._web3.wait_for_tx(tx)
+        tx_hash = self._contract.create_submission(ipfs_hash, commit_hash)
+        Logs.debug('create tx', tx_hash)
+        self._plugin._web3.wait_for_tx(tx_hash)
 

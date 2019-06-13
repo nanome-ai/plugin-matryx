@@ -1,4 +1,6 @@
+import os
 from functools import partial
+from time import sleep
 
 import nanome
 from nanome.util import Logs
@@ -10,6 +12,9 @@ from menus.AccountsMenu import AccountsMenu
 from menus.FilesMenu import FilesMenu
 from menus.TournamentMenu import TournamentMenu
 from menus.CreationsMenu import CreationsMenu
+from menus.Modal import Modal
+
+from contracts.MatryxCommit import MatryxCommit
 
 import web3
 import blockies
@@ -27,10 +32,13 @@ class Matryx(nanome.PluginInstance):
         self._web3 = Web3Helper(self)
         self._web3.setup()
 
+        self._commit = MatryxCommit(self)
+
         self._menu_files = FilesMenu(self, self.previous_menu)
         self._menu_accounts = AccountsMenu(self, self.previous_menu)
         self._menu_creations = CreationsMenu(self, self.previous_menu)
         self._menu_tournament = TournamentMenu(self, self.previous_menu)
+        self._modal = Modal(self, self.previous_menu)
 
         self._list_node = menu.root.find_node('List', True)
         self._list = self._list_node.get_content()
@@ -53,9 +61,7 @@ class Matryx(nanome.PluginInstance):
         self._button_my_creations.register_pressed_callback(self.populate_my_creations)
 
         self._prefab_tournament_item = menu.root.find_node('Tournament Item Prefab')
-
-        self._prefab_commit_item = nanome.ui.LayoutNode()
-        self._prefab_commit_item.add_new_button()
+        self._prefab_commit_item = menu.root.find_node('Commit Item Prefab')
 
         self.on_run()
 
@@ -119,7 +125,7 @@ class Matryx(nanome.PluginInstance):
         self._account_eth.text_value = utils.truncate(self._web3.get_eth(account.address)) + ' ETH'
         self._account_mtx.text_value = utils.truncate(self._web3.get_mtx(account.address)) + ' MTX'
         self._menu_history.pop()
-        self.on_run()
+        self.open_matryx_menu()
 
     def check_account(self):
         if self._account:
@@ -204,11 +210,17 @@ class Matryx(nanome.PluginInstance):
         commits = self._cortex.get_commits(self._account.address)
         self._list.items = []
 
+        clone = self._prefab_commit_item.clone()
+        btn_new = clone.get_content()
+        btn_new.set_all_text('+')
+        btn_new.bolded = True
+        btn_new.register_pressed_callback(self.hash_work)
+        self._list.items.append(clone)
+
         for commit in commits:
             clone = self._prefab_commit_item.clone()
-
             btn = clone.get_content()
-            btn.set_all_text(commit['hash'])
+            btn.set_all_text('Commit ' + commit['hash'][2:10])
 
             callback = partial(self._menu_files.load_files, commit['ipfsContent'])
             btn.register_pressed_callback(callback)
@@ -216,6 +228,37 @@ class Matryx(nanome.PluginInstance):
             self._list.items.append(clone)
 
         self.refresh_menu()
+
+    def hash_work(self, button):
+        return self.request_workspace(self.handle_work)
+
+    def handle_work(self, workspace):
+        for complex in workspace.complexes:
+            if not complex.rendering.visible:
+                continue
+
+            self._modal.show_message('Hashing your work to Matryx')
+            path = os.path.join(os.path.dirname(__file__), 'sdfs', 'complex3.name' + '.sdf')
+            complex.io.to_sdf(path)
+            ipfs_hash = self._cortex.upload_files([path])
+            print('hash', ipfs_hash)
+
+            sender = self._account.address
+            salt = utils.random_bytes()
+            commit_hash = self._web3.solidity_sha3(['address', 'bytes32', 'string'], [sender, salt, ipfs_hash])
+            print('salt', salt)
+            print('commit_hash', commit_hash)
+
+            tx_hash = self._commit.claimCommit(commit_hash)
+            Logs.debug('claim tx ' + tx_hash)
+            self._web3.wait_for_tx(tx_hash)
+
+            tx_hash = self._commit.createCommit('0x' + '0' * 64, False, salt, ipfs_hash, 1)
+            Logs.debug('create tx ' + tx_hash)
+            self._web3.wait_for_tx(tx_hash)
+
+            self._modal.show_message('Your work has been hashed')
+            return
 
 def main():
     plugin = nanome.Plugin('Matryx', 'Interact with the Matryx platform', 'Utilities', False)
