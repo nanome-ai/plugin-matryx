@@ -12,12 +12,15 @@ def time_until(the_time):
     if time < 0:
         return ''
 
-    units = [(60, "s"), (60, "m"), (24, "h"), (7, "d"), (52, "w"), (inf, "y")]
+    units = [(60, 's'), (60, 'm'), (24, 'h'), (7, 'd'), (52, 'w'), (inf, 'y')]
 
     for amount, label in units:
         if time < amount:
             return str(int(time)) + label
         time = time / amount
+
+def timestamp_to_date(timestamp):
+    return datetime.fromtimestamp(timestamp).strftime('on %b %d, %Y at %I:%M %p')
 
 def file_size(size):
     units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']

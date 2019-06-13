@@ -4,10 +4,12 @@ import nanome
 from nanome.util import Logs
 import utils
 
+from contracts.Web3Helper import Web3Helper
 from MatryxCortex import MatryxCortex
-from AccountsMenu import AccountsMenu
-from FilesMenu import FilesMenu
-from TournamentMenu import TournamentMenu
+from menus.AccountsMenu import AccountsMenu
+from menus.FilesMenu import FilesMenu
+from menus.TournamentMenu import TournamentMenu
+from menus.CreationsMenu import CreationsMenu
 
 import web3
 import blockies
@@ -18,24 +20,28 @@ class Matryx(nanome.PluginInstance):
         self._menu_history = []
         self._account = None
 
-        self._matryx_menu = nanome.ui.Menu.io.from_json("menus/matryx.json")
+        self._matryx_menu = nanome.ui.Menu.io.from_json('menus/json/matryx.json')
         menu = self._matryx_menu
 
         self._cortex = MatryxCortex('https://cortex-staging.matryx.ai')
+        self._web3 = Web3Helper(self)
+        self._web3.setup()
+
         self._menu_files = FilesMenu(self, self.previous_menu)
         self._menu_accounts = AccountsMenu(self, self.previous_menu)
+        self._menu_creations = CreationsMenu(self, self.previous_menu)
         self._menu_tournament = TournamentMenu(self, self.previous_menu)
 
-        self._list_node = menu.root.find_node("List", True)
+        self._list_node = menu.root.find_node('List', True)
         self._list = self._list_node.get_content()
-        self._error_message = menu.root.find_node("Error Message", True)
+        self._error_message = menu.root.find_node('Error Message', True)
 
-        self._button_account = menu.root.find_node("Account Button", True).get_content()
+        self._button_account = menu.root.find_node('Account Button', True).get_content()
         self._button_account.register_pressed_callback(self._menu_accounts.show_menu)
 
-        self._account_blockie = menu.root.find_node("Blockie")
-        self._account_eth = menu.root.find_node("ETH Balance").get_content()
-        self._account_mtx = menu.root.find_node("MTX Balance").get_content()
+        self._account_blockie = menu.root.find_node('Blockie')
+        self._account_eth = menu.root.find_node('ETH Balance').get_content()
+        self._account_mtx = menu.root.find_node('MTX Balance').get_content()
 
         self._button_all_tournaments = menu.root.find_node('All Tournaments').get_content()
         self._button_all_tournaments.register_pressed_callback(self.populate_all_tournaments)
@@ -49,9 +55,7 @@ class Matryx(nanome.PluginInstance):
         self._prefab_tournament_item = menu.root.find_node('Tournament Item Prefab')
 
         self._prefab_commit_item = nanome.ui.LayoutNode()
-        child = self._prefab_commit_item.create_child_node()
-        child.forward_dist = 0.002
-        child.add_new_button()
+        self._prefab_commit_item.add_new_button()
 
         self.on_run()
 
@@ -75,8 +79,12 @@ class Matryx(nanome.PluginInstance):
         self._deferred.append([frames, fn])
 
     def open_menu(self, menu, history=True):
-        if menu is not self._matryx_menu and history:
-            self._menu_history.append(menu)
+        if history and menu is not self._matryx_menu:
+            if len(self._menu_history) > 0:
+                if menu is not self._menu_history[-1]:
+                    self._menu_history.append(menu)
+            else:
+                self._menu_history.append(menu)
 
         self.menu = menu
         menu.enabled = True
@@ -104,12 +112,12 @@ class Matryx(nanome.PluginInstance):
         self._list_node.enabled = True
         self._error_message.enabled = False
 
-    def update_account(self, account):
+    def update_account(self, account, button=None):
         self._account = account
         self._button_account.text.value_idle = account.short_address
         self._account_blockie.add_new_image(account.blockie)
-        self._account_eth.text_value = utils.truncate(self._cortex.get_eth(account.address)) + ' ETH'
-        self._account_mtx.text_value = utils.truncate(self._cortex.get_mtx(account.address)) + ' MTX'
+        self._account_eth.text_value = utils.truncate(self._web3.get_eth(account.address)) + ' ETH'
+        self._account_mtx.text_value = utils.truncate(self._web3.get_mtx(account.address)) + ' MTX'
         self._menu_history.pop()
         self.on_run()
 
@@ -118,7 +126,7 @@ class Matryx(nanome.PluginInstance):
             self.clear_error()
             return True
 
-        self.show_error("please select an account")
+        self.show_error('please select an account')
         self.refresh_menu()
 
     def toggle_tab(self, active_tab):
@@ -133,7 +141,7 @@ class Matryx(nanome.PluginInstance):
 
         active_tab.selected = True
 
-    def populate_tournaments(self, status='abandoned', mine=False):
+    def populate_tournaments(self, status='open', mine=False):
         params = {
             'offset': 0,
             'sortBy': 'round_end',
@@ -156,7 +164,7 @@ class Matryx(nanome.PluginInstance):
 
             title = clone.find_node('Title').get_content()
             text = tournament['title']
-            text = text[0:55] + ("..." if len(text) > 55 else "")
+            text = text[0:55] + ('...' if len(text) > 55 else '')
             title.text_value = text
 
             bounty = clone.find_node('Bounty').get_content()
@@ -198,17 +206,21 @@ class Matryx(nanome.PluginInstance):
 
         for commit in commits:
             clone = self._prefab_commit_item.clone()
-            btn = clone.get_children()[0].get_content()
+
+            btn = clone.get_content()
             btn.set_all_text(commit['hash'])
-            # btn.register_pressed_callback()
+
+            callback = partial(self._menu_files.load_files, commit['ipfsContent'])
+            btn.register_pressed_callback(callback)
+
             self._list.items.append(clone)
 
         self.refresh_menu()
 
 def main():
-    plugin = nanome.Plugin("Matryx", "Interact with the Matryx platform", "Utilities", False)
+    plugin = nanome.Plugin('Matryx', 'Interact with the Matryx platform', 'Utilities', False)
     plugin.set_plugin_class(Matryx)
     plugin.run('127.0.0.1', 8888)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

@@ -10,14 +10,14 @@ class FilesMenu:
     def __init__(self, _plugin, on_close):
         self._plugin = _plugin
 
-        menu_files = nanome.ui.Menu.io.from_json('menus/files.json')
+        menu_files = nanome.ui.Menu.io.from_json('menus/json/files.json')
         menu_files.register_closed_callback(on_close)
         self._menu_files = menu_files
 
         self._prefab_file_item = menu_files.root.find_node('File Item Prefab')
         self._files_list = menu_files.root.find_node('List').get_content()
 
-        self._menu_view_file = nanome.ui.Menu.io.from_json('menus/view_file.json')
+        self._menu_view_file = nanome.ui.Menu.io.from_json('menus/json/view_file.json')
         self._menu_view_file.register_closed_callback(on_close)
 
         self._file_view = self._menu_view_file.root.find_node('File View')

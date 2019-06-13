@@ -6,14 +6,13 @@ import utils
 from nanome.util import Logs
 
 from web3 import Web3, HTTPProvider
-from eth_account import Account
 import blockies
 
 class AccountsMenu():
     def __init__(self, plugin, on_close):
         self._plugin = plugin
 
-        menu = nanome.ui.Menu.io.from_json("menus/accounts.json")
+        menu = nanome.ui.Menu.io.from_json('menus/json/accounts.json')
         menu.register_closed_callback(on_close)
 
         self._accounts_list = menu.root.find_node('Accounts List').get_content()
@@ -40,12 +39,12 @@ class AccountsMenu():
         self._accounts_list.items = []
 
         for key in keys:
-            account = Account.from_key(key)
+            account = self._plugin._web3.account_from_key(key)
 
             address = account.address.lower()
             short_address = utils.short_address(address)
 
-            filepath = os.path.join(os.path.dirname(__file__), 'blockies/' + address + '.png')
+            filepath = os.path.join(os.path.dirname(__file__), '../blockies/' + address + '.png')
             with open(filepath, 'wb') as png:
                 blockie = blockies.create(address, scale=64)
                 png.write(blockie)
@@ -58,7 +57,7 @@ class AccountsMenu():
             account_item.enabled = True
 
             button = account_item.get_content()
-            button.register_pressed_callback(partial(self.select_account, account))
+            button.register_pressed_callback(partial(self._plugin.update_account, account))
 
             account_item.find_node('Blockie').add_new_image(filepath)
             account_item.find_node('Address').get_content().text_value = short_address
@@ -66,6 +65,3 @@ class AccountsMenu():
             self._accounts_list.items.append(account_item)
 
         self._plugin.refresh_menu()
-
-    def select_account(self, account, button=None):
-        self._plugin.update_account(account)

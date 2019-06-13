@@ -1,9 +1,9 @@
 import os
+from time import sleep
 from nanome.util import Logs
 
 import requests
 import shutil
-from web3 import Web3, HTTPProvider
 
 class MatryxCortex():
     def __init__(self, url):
@@ -11,14 +11,6 @@ class MatryxCortex():
         self._artifacts = self.get_artifacts()
 
         self._ipfs_url = 'https://ipfs.infura.io:5001/api/v0/'
-
-        self._provider = HTTPProvider('https://ropsten.infura.io/v3/2373e82fc83341ff82b66c5a87edd5f5')
-        self._w3 = Web3(self._provider)
-
-        self._token = self._w3.eth.contract(
-            address=self._artifacts['token']['address'],
-            abi=self._artifacts['token']['abi']
-        )
 
     def ipfs_list_dir(self, ipfs_hash):
         url = self._ipfs_url + 'object/get?arg=' + ipfs_hash
@@ -43,6 +35,10 @@ class MatryxCortex():
         with open(path, 'r') as file:
             return file.read()
 
+    def upload_json(self, json):
+        response = requests.post(self._url + '/upload/json', json=json)
+        return response.json()['data']['hash']
+
     def get_json(self, path, params=None):
         json = requests.get(self._url + path, params).json()
         return json['data']
@@ -65,10 +61,5 @@ class MatryxCortex():
     def get_commits(self, owner):
         return self.get_json('/commits/owner/' + owner)['commits']
 
-    def get_mtx(self, owner):
-        wei = self._token.functions.balanceOf(owner).call()
-        return Web3.fromWei(wei, 'ether')
-
-    def get_eth(self, owner):
-        wei = self._w3.eth.getBalance(owner)
-        return Web3.fromWei(wei, 'ether')
+    def get_commit(self, hash):
+        return self.get_json('/commits/' + hash)['commit']

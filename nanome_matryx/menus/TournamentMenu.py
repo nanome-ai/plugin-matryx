@@ -1,5 +1,3 @@
-import os
-from datetime import datetime
 from functools import partial
 from datetime import datetime
 
@@ -7,9 +5,7 @@ import nanome
 import utils
 from nanome.util import Logs
 
-from web3 import Web3, HTTPProvider
-from eth_account import Account
-import blockies
+from contracts.MatryxTournament import MatryxTournament
 
 class TournamentMenu():
     def __init__(self, plugin, on_close):
@@ -18,7 +14,7 @@ class TournamentMenu():
         self._round_index = None
         self._round_index_max = None
 
-        menu = nanome.ui.Menu.io.from_json('menus/tournament.json')
+        menu = nanome.ui.Menu.io.from_json('menus/json/tournament.json')
         menu.register_closed_callback(on_close)
         self._menu = menu
 
@@ -33,9 +29,12 @@ class TournamentMenu():
         self._round_bounty = menu.root.find_node('Round Bounty').get_content()
 
         self._round_decrement = menu.root.find_node('Round Decrement').get_content()
-        self._round_decrement.register_pressed_callback(partial(self.press_round, -1))
+        self._round_decrement.register_pressed_callback(partial(self.change_round, -1))
         self._round_increment = menu.root.find_node('Round Increment').get_content()
-        self._round_increment.register_pressed_callback(partial(self.press_round, 1))
+        self._round_increment.register_pressed_callback(partial(self.change_round, 1))
+
+        self._menu_submit = nanome.ui.Menu.io.from_json('menus/json/create_submission.json')
+        self._menu_submit.register_closed_callback(on_close)
 
         self._submission_list_node = menu.root.find_node('Submission List')
         self._submission_list = self._submission_list_node.get_content()
@@ -46,12 +45,9 @@ class TournamentMenu():
 
         self._button_view_files = menu.root.find_node('Files Button').get_content()
         self._button_create_sub = menu.root.find_node('Create Button').get_content()
-        self._button_create_sub.register_pressed_callback(self.open_submit_menu)
+        self._button_create_sub.register_pressed_callback(self._plugin._menu_creations.open_my_creations)
 
-        self._menu_submit = nanome.ui.Menu.io.from_json('menus/create_submission.json')
-        self._menu_submit.register_closed_callback(on_close)
-
-        self._menu_submission = nanome.ui.Menu.io.from_json('menus/submission.json')
+        self._menu_submission = nanome.ui.Menu.io.from_json('menus/json/submission.json')
         self._menu_submission.register_closed_callback(on_close)
 
         self._submission_title = self._menu_submission.root.find_node('Title').get_content()
@@ -62,6 +58,8 @@ class TournamentMenu():
 
     def load_tournament(self, address, button):
         tournament = self._plugin._cortex.get_tournament(address)
+
+        self._contract = MatryxTournament(self._plugin, address)
         self._tournament = tournament
         self._round_index_max = tournament['round']['index']
 
@@ -76,7 +74,7 @@ class TournamentMenu():
         callback = partial(self._plugin._menu_files.load_files, ipfs_hash)
         self._button_view_files.register_pressed_callback(callback)
 
-        end_date = datetime.fromisoformat(tournament['round']['endDate'].replace("Z", "+00:00"))
+        end_date = datetime.fromisoformat(tournament['round']['endDate'].replace('Z', '+00:00'))
         time_remaining = utils.time_until(end_date)
         time_remaining = time_remaining + ' remaining' if time_remaining != '' else 'tournament closed'
         self._time_remaining.text_value = time_remaining
@@ -84,6 +82,10 @@ class TournamentMenu():
         self.display_round(tournament['round'])
 
         self._plugin.open_menu(self._menu)
+
+    def change_round(self, dir, button):
+        self._round_index += dir
+        self.load_round()
 
     def load_round(self):
         round = self._plugin._cortex.get_round(self._tournament['address'], self._round_index)
@@ -120,23 +122,56 @@ class TournamentMenu():
 
             self._submission_list.items.append(clone)
 
-    def load_submission(self, hash, button):
-        submission = self._plugin._cortex.get_submission(hash)
+    def load_submission(self, submission_hash, button):
+        submission = self._plugin._cortex.get_submission(submission_hash)
 
         self._submission_title.text_value = submission['title']
         self._submission_creator.text_value = 'by ' + utils.short_address(submission['owner'])
         self._submission_description.text_value = submission['description']
-
-        date = datetime.fromtimestamp(submission['timestamp']).strftime('on %b %d, %Y at %I:%M %p')
-        self._submission_date.text_value = date
+        self._submission_date.text_value = utils.timestamp_to_date(submission['timestamp'])
 
         callback = partial(self._plugin._menu_files.load_files, submission['commit']['ipfsContent'])
         self._submission_view_files.register_pressed_callback(callback)
         self._plugin.open_menu(self._menu_submission)
 
-    def open_submit_menu(self, button):
+    def open_submit_menu(self, commit_hash, button):
+        btn = self._menu_submit.root.find_node('Submit Button').get_content()
+        btn.register_pressed_callback(partial(self.submit_to_tournament, commit_hash))
         self._plugin.open_menu(self._menu_submit)
 
-    def press_round(self, dir, button):
-        self._round_index += dir
-        self.load_round()
+    def submit_to_tournament(self, commit_hash, button):
+        account = self._plugin._account.address
+
+        is_entrant = self._contract.isEntrant(account)
+        if not is_entrant:
+            token = self._plugin._web3._token
+
+            entry_fee = self._tournament['entryFee']
+            balance = self._plugin._web3.get_mtx(account)
+            allowance = self._plugin._web3.get_allowance(account)
+
+            if balance < entry_fee:
+                # tell user that they're fucking broke
+                pass
+            elif allowance < entry_fee:
+                if allowance != 0:
+                    tx = token.approve(self._web3._platform.address, 0)
+                    Logs.debug('reset allowance tx', tx)
+                    self._plugin._web3.wait_for_tx(tx)
+
+                tx = token.approve(self._web3._platform.address, entry_fee)
+                Logs.debug('set allowance tx', tx)
+                self._plugin._web3.wait_for_tx(tx)
+
+            tx = self._contract.enter()
+            Logs.debug('enter tx', tx)
+            self._plugin._web3.wait_for_tx(tx)
+
+        title = self._menu_submit.root.find_node('Title Input').get_content().input_text
+        description = self._menu_submit.root.find_node('Description Input').get_content().input_text
+        ipfs_hash = self._plugin._cortex.upload_json({'title': title, 'description': description})
+
+        tx = self._contract.create_submission(ipfs_hash, commit_hash)
+        Logs.debug('create tx', tx)
+        self._plugin._web3.wait_for_tx(tx)
+

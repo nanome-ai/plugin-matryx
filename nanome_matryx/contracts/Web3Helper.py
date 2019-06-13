@@ -1,0 +1,72 @@
+from time import sleep
+from web3 import Web3, HTTPProvider
+
+from contracts.MatryxToken import MatryxToken
+
+class Web3Helper():
+    def __init__(self, plugin):
+        self._plugin = plugin
+
+        self._provider = HTTPProvider('https://ropsten.infura.io/v3/2373e82fc83341ff82b66c5a87edd5f5')
+        self._web3 = Web3(self._provider)
+
+    def setup(self):
+        self._token = MatryxToken(self._plugin)
+        self._platform = self.get_contract('platform')
+
+    def account_from_key(self, private_key):
+        return self._web3.eth.account.privateKeyToAccount(private_key)
+
+    def from_wei(self, amount, unit='ether'):
+        return self._web3.fromWei(amount, unit)
+
+    def to_wei(self, amount, unit='ether'):
+        return self._web3.toWei(amount, unit)
+
+    def get_contract(self, contract_type, address=None):
+        if address is None:
+            address = self._plugin._cortex._artifacts[contract_type]['address']
+
+        address = self._web3.toChecksumAddress(address)
+        abi = self._plugin._cortex._artifacts[contract_type]['abi']
+        return self._web3.eth.contract(abi=abi, address=address)
+
+    def get_eth(self, address):
+        wei = self._web3.eth.getBalance(address)
+        return self.from_wei(wei)
+
+    def get_mtx(self, address):
+        return self._token.balanceOf(address)
+
+    def get_allowance(self, address):
+        return self._token.allowance(address, self._platform.address)
+
+    def estimate_gas(self, fn):
+        caller = self._plugin._account.address
+        tx = fn.buildTransaction({'from': caller})
+        return self._web3.eth.estimateGas(tx)
+
+    def create_tx(self, fn):
+        caller = self._plugin._account.address
+        gas = self.estimate_gas(fn)
+        nonce = self._web3.eth.getTransactionCount(caller)
+
+        return fn.buildTransaction({
+            'from': caller,
+            'gas': gas,
+            'gasPrice': self.to_wei('4', 'gwei'),
+            'nonce': nonce
+        })
+
+    def send_tx(self, fn):
+        account = self._plugin._account
+        signed_tx = account.signTransaction(self.create_tx(fn))
+        receipt = self._web3.eth.sendRawTransaction(signed_tx.rawTransaction)
+        return receipt.hex()
+
+    def wait_for_tx(self, tx_hash, poll_interval=1):
+        while True:
+            sleep(poll_interval)
+            tx_receipt = self._web3.eth.getTransactionReceipt(tx_hash)
+            if tx_receipt:
+                return tx_receipt
