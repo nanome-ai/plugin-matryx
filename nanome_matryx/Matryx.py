@@ -1,4 +1,5 @@
 import os
+import re
 from functools import partial
 from time import sleep
 
@@ -12,6 +13,9 @@ from menus.AccountsMenu import AccountsMenu
 from menus.FilesMenu import FilesMenu
 from menus.TournamentMenu import TournamentMenu
 from menus.CreationsMenu import CreationsMenu
+from menus.CreationMenu import CreationMenu
+from menus.FirstToHashMenu import FirstToHashMenu
+from menus.CreateTournamentMenu import CreateTournamentMenu
 from menus.Modal import Modal
 
 from contracts.MatryxCommit import MatryxCommit
@@ -37,7 +41,10 @@ class Matryx(nanome.PluginInstance):
         self._menu_files = FilesMenu(self, self.previous_menu)
         self._menu_accounts = AccountsMenu(self, self.previous_menu)
         self._menu_creations = CreationsMenu(self, self.previous_menu)
+        self._menu_creation = CreationMenu(self, self.previous_menu)
         self._menu_tournament = TournamentMenu(self, self.previous_menu)
+        self._menu_first_to_hash = FirstToHashMenu(self, self.previous_menu)
+        self._menu_create_tournament = CreateTournamentMenu(self, self.previous_menu)
         self._modal = Modal(self, self.previous_menu)
 
         self._list_node = menu.root.find_node('List', True)
@@ -147,6 +154,15 @@ class Matryx(nanome.PluginInstance):
 
         active_tab.selected = True
 
+    def list_create_button(self, callback):
+        clone = self._prefab_commit_item.clone()
+        btn_create = clone.get_content()
+        btn_create.set_all_text('+')
+        btn_create.bolded = True
+
+        btn_create.register_pressed_callback(callback)
+        self._list.items.append(clone)
+
     def populate_tournaments(self, status='open', mine=False):
         params = {
             'offset': 0,
@@ -154,13 +170,17 @@ class Matryx(nanome.PluginInstance):
             'status': status
         }
 
+        self._list.items = []
         if mine:
             params['owner'] = self._account.address
+            self.list_create_button(self._menu_create_tournament.new_tournament)
 
         tournaments = self._cortex.get_tournaments(params)
-        self._list.items = []
+
+        Logs.debug('tournaments size:' + str(len(tournaments)))
 
         for tournament in tournaments:
+            Logs.debug('tournament:', tournament['title'])
             clone = self._prefab_tournament_item.clone()
             clone.enabled = True
 
@@ -207,58 +227,21 @@ class Matryx(nanome.PluginInstance):
         if not self.check_account():
             return
 
-        commits = self._cortex.get_commits(self._account.address)
         self._list.items = []
+        self.list_create_button(self._menu_first_to_hash.display_selected)
 
-        clone = self._prefab_commit_item.clone()
-        btn_new = clone.get_content()
-        btn_new.set_all_text('+')
-        btn_new.bolded = True
-        btn_new.register_pressed_callback(self.hash_work)
-        self._list.items.append(clone)
-
+        commits = self._cortex.get_commits(self._account.address)
         for commit in commits:
             clone = self._prefab_commit_item.clone()
             btn = clone.get_content()
             btn.set_all_text('Commit ' + commit['hash'][2:10])
 
-            callback = partial(self._menu_files.load_files, commit['ipfsContent'])
+            callback = partial(self._menu_creation.load_commit, commit['hash'])
             btn.register_pressed_callback(callback)
 
             self._list.items.append(clone)
 
         self.refresh_menu()
-
-    def hash_work(self, button):
-        return self.request_workspace(self.handle_work)
-
-    def handle_work(self, workspace):
-        for complex in workspace.complexes:
-            if not complex.rendering.visible:
-                continue
-
-            self._modal.show_message('Hashing your work to Matryx')
-            path = os.path.join(os.path.dirname(__file__), 'sdfs', 'complex3.name' + '.sdf')
-            complex.io.to_sdf(path)
-            ipfs_hash = self._cortex.upload_files([path])
-            print('hash', ipfs_hash)
-
-            sender = self._account.address
-            salt = utils.random_bytes()
-            commit_hash = self._web3.solidity_sha3(['address', 'bytes32', 'string'], [sender, salt, ipfs_hash])
-            print('salt', salt)
-            print('commit_hash', commit_hash)
-
-            tx_hash = self._commit.claimCommit(commit_hash)
-            Logs.debug('claim tx ' + tx_hash)
-            self._web3.wait_for_tx(tx_hash)
-
-            tx_hash = self._commit.createCommit('0x' + '0' * 64, False, salt, ipfs_hash, 1)
-            Logs.debug('create tx ' + tx_hash)
-            self._web3.wait_for_tx(tx_hash)
-
-            self._modal.show_message('Your work has been hashed')
-            return
 
 def main():
     plugin = nanome.Plugin('Matryx', 'Interact with the Matryx platform', 'Utilities', False)

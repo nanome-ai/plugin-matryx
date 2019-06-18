@@ -40,6 +40,7 @@ class FilesMenu:
         self._plugin.open_menu(self._menu_files)
 
     def view_file(self, file, button):
+        show_menu = True
         file_parts = file['Name'].split('.')
         file_name = '.'.join(file_parts[:-1])
         ext = file_parts[-1]  # png, json, etc.
@@ -55,10 +56,12 @@ class FilesMenu:
             text = self._plugin._cortex.ipfs_get_file_contents(file['Hash'])
             self._file_view.get_content().text_value = text
         elif ext in ['sdf', 'pdb', 'mmcif']:
+            show_menu = False
             lines = self._plugin._cortex.ipfs_get_file_contents(file['Hash']).split('\n')
             complex = getattr(nanome.api.structure.Complex.io, 'from_' + ext) (lines=lines)
             complex.name = file_name
             self._plugin.add_to_workspace([complex])
         # elif ext == 'pdf':
 
-        self._plugin.open_menu(self._menu_view_file)
+        if show_menu:
+            self._plugin.open_menu(self._menu_view_file)

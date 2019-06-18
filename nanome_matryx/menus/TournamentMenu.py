@@ -69,7 +69,7 @@ class TournamentMenu():
         self._author.text_value = 'by ' + utils.short_address(tournament['owner'])
         self._bounty.text_value = '%d MTX' % tournament['bounty']
 
-        ipfs_hash = 'QmUV7wfHWoTJqk61K2A8XbQ6AS7ERQgyXa66X18MrpXrjz' #'QmWTje28788ZYSbJd4fpZtZM5spE5agCCcKHYdH5NtJMcZ' # tournament['ipfsFiles']
+        ipfs_hash = tournament['ipfsFiles']
         self._button_view_files.unusable = ipfs_hash == ''
         callback = partial(self._plugin._menu_files.load_files, ipfs_hash)
         self._button_view_files.register_pressed_callback(callback)

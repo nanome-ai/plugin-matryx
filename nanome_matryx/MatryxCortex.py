@@ -45,7 +45,9 @@ class MatryxCortex():
             files.append(("files", open(path, 'rb')))
 
         response = requests.post(self._url + '/upload/files', files=files)
-        return response.json()['data']['hash']
+        ipfs_hash = response.json()['data']['hash']
+        Logs.debug('ipfs hash', ipfs_hash)
+        return ipfs_hash
 
     def get_json(self, path, params=None):
         json = requests.get(self._url + path, params).json()
