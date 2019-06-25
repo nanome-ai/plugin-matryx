@@ -66,10 +66,9 @@ class FirstToHashMenu():
         paths = []
         for structure in structures:
             if structure is not nanome.api.structure.Residue and structure is not nanome.api.structure.Atom:
-                paths.append(self.write_pdb(structure))
+                paths.append(self.write_mmcif(structure))
             else:
                 paths.append(self.write_sdf(structure))
-
         return paths
 
     def get_fully_selected(self, workspace):
@@ -147,11 +146,16 @@ class FirstToHashMenu():
         return complexes
 
     def write_pdb(self, structure):
-        path = os.path.join(os.path.dirname(__file__), '..', 'temp', structure.name + '.pdb')
+        path = os.path.join(os.path.dirname(__file__), '../temp/molecules', structure.name + '.pdb')
         structure.io.to_pdb(path)
         return path
 
+    def write_mmcif(self, structure):
+        path = os.path.join(os.path.dirname(__file__), '../temp/molecules', structure.name + '.cif')
+        structure.io.to_mmcif(path)
+        return path
+
     def write_sdf(self, structure):
-        path = os.path.join(os.path.dirname(__file__),  '..', 'temp', structure.name + '.sdf')
+        path = os.path.join(os.path.dirname(__file__),  '../temp/molecules', structure.name + '.sdf')
         structure.to_sdf(path)
         return path

@@ -18,7 +18,7 @@ class MatryxCortex():
         return json['Links']
 
     def ipfs_download_file(self, ipfs_hash):
-        path = 'ipfs_cache/' + ipfs_hash
+        path = 'temp/ipfs/' + ipfs_hash
 
         if not os.path.isfile(path):
             url = self._ipfs_url + 'cat?arg=' + ipfs_hash

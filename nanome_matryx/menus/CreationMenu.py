@@ -19,6 +19,7 @@ class CreationMenu:
         self._files_list = menu_creation.root.find_node('Files List').get_content()
         self._child_list = menu_creation.root.find_node('Child List').get_content()
         self._prefab_list_item = menu_creation.root.find_node('List Item Prefab')
+        self._bottom = menu_creation.root.find_node('Bottom')
 
     def load_commit(self, commit_hash, button):
         self._counter = 0
@@ -53,6 +54,8 @@ class CreationMenu:
             self._files_list.items.append(clone)
 
     def load_children(self, commit):
+        self._bottom.enabled = len(commit['children']) != 0
+
         self._child_list.items = []
         for child in commit['children']:
             clone = self._prefab_list_item.clone()

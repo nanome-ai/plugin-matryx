@@ -11,7 +11,7 @@ class Modal:
 
     def show_error(self, error):
         self._menu.title = 'Matryx - Error'
-        self.set_label('Error:' + error)
+        self.set_label('Error: ' + error)
 
     def show_message(self, message):
         self._menu.title = 'Matryx - Status'

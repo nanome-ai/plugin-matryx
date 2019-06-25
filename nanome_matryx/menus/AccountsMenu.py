@@ -44,7 +44,7 @@ class AccountsMenu():
             address = account.address.lower()
             short_address = utils.short_address(address)
 
-            filepath = os.path.join(os.path.dirname(__file__), '../blockies/' + address + '.png')
+            filepath = os.path.join(os.path.dirname(__file__), '../temp/blockies/' + address + '.png')
             with open(filepath, 'wb') as png:
                 blockie = blockies.create(address, scale=64)
                 png.write(blockie)

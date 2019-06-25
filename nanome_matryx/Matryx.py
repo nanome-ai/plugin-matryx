@@ -16,7 +16,9 @@ from menus.CreationsMenu import CreationsMenu
 from menus.CreationMenu import CreationMenu
 from menus.FirstToHashMenu import FirstToHashMenu
 from menus.CreateTournamentMenu import CreateTournamentMenu
+from menus.select_winners.SelectWinnersMenu import SelectWinnersMenu
 from menus.Modal import Modal
+from menus.Confirm import Confirm
 
 from contracts.MatryxCommit import MatryxCommit
 
@@ -45,6 +47,8 @@ class Matryx(nanome.PluginInstance):
         self._menu_tournament = TournamentMenu(self, self.previous_menu)
         self._menu_first_to_hash = FirstToHashMenu(self, self.previous_menu)
         self._menu_create_tournament = CreateTournamentMenu(self, self.previous_menu)
+        self._menu_select_winners = SelectWinnersMenu(self, self.previous_menu)
+        self._menu_confirm = Confirm(self, self.previous_menu)
         self._modal = Modal(self, self.previous_menu)
 
         self._list_node = menu.root.find_node('List', True)
@@ -173,14 +177,11 @@ class Matryx(nanome.PluginInstance):
         self._list.items = []
         if mine:
             params['owner'] = self._account.address
-            self.list_create_button(self._menu_create_tournament.new_tournament)
+            self.list_create_button(self._menu_create_tournament.clear_and_open)
 
         tournaments = self._cortex.get_tournaments(params)
 
-        Logs.debug('tournaments size:' + str(len(tournaments)))
-
         for tournament in tournaments:
-            Logs.debug('tournament:', tournament['title'])
             clone = self._prefab_tournament_item.clone()
             clone.enabled = True
 

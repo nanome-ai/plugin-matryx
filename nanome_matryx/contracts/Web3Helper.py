@@ -4,6 +4,7 @@ from time import sleep
 from web3 import Web3, HTTPProvider, exceptions
 
 from contracts.MatryxToken import MatryxToken
+from contracts.MatryxPlatform import MatryxPlatform
 
 class Web3Helper():
     def __init__(self, plugin):
@@ -14,7 +15,7 @@ class Web3Helper():
 
     def setup(self):
         self._token = MatryxToken(self._plugin)
-        self._platform = self.get_contract('platform')
+        self._platform = MatryxPlatform(self._plugin)
 
     def account_from_key(self, private_key):
         return self._web3.eth.account.privateKeyToAccount(private_key)

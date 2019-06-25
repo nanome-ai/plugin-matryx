@@ -43,9 +43,8 @@ class TournamentMenu():
 
         self._prefab_submission_item = menu.root.find_node('Submission Item Prefab')
 
-        self._button_view_files = menu.root.find_node('Files Button').get_content()
-        self._button_create_sub = menu.root.find_node('Create Button').get_content()
-        self._button_create_sub.register_pressed_callback(self._plugin._menu_creations.open_my_creations)
+        self._button_view_files = menu.root.find_node('Files Button')
+        self._button_action = menu.root.find_node('Action Button')
 
         self._menu_submission = nanome.ui.Menu.io.from_json('menus/json/submission.json')
         self._menu_submission.register_closed_callback(on_close)
@@ -70,9 +69,25 @@ class TournamentMenu():
         self._bounty.text_value = '%d MTX' % tournament['bounty']
 
         ipfs_hash = tournament['ipfsFiles']
-        self._button_view_files.unusable = ipfs_hash == ''
+        self._button_view_files.enabled = ipfs_hash != ''
         callback = partial(self._plugin._menu_files.load_files, ipfs_hash)
-        self._button_view_files.register_pressed_callback(callback)
+        self._button_view_files.get_content().register_pressed_callback(callback)
+
+        is_owner = self._plugin._account != None and tournament['owner'] == self._plugin._account.address.lower()
+        in_review = tournament['round']['status'] == 'review'
+        can_submit = not is_owner and tournament['round']['status'] == 'open'
+        self._button_action.enabled = True
+        btn = self._button_action.get_content()
+
+        if can_submit:
+            btn.set_all_text('create submission')
+            btn.register_pressed_callback(self._plugin._menu_creations.open_my_creations)
+        elif is_owner and in_review:  # winner selection
+            btn.set_all_text('select winners')
+            callback = partial(self._plugin._menu_select_winners.load_tournament, taco)
+            btn.register_pressed_callback(callback)
+        else:
+            self._button_action.enabled = False
 
         end_date = datetime.fromisoformat(tournament['round']['endDate'].replace('Z', '+00:00'))
         time_remaining = utils.time_until(end_date)

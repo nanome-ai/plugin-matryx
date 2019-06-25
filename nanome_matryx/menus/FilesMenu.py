@@ -55,13 +55,18 @@ class FilesMenu:
             self._file_view.add_new_label()
             text = self._plugin._cortex.ipfs_get_file_contents(file['Hash'])
             self._file_view.get_content().text_value = text
-        elif ext in ['sdf', 'pdb', 'mmcif']:
+        elif ext in ['sdf', 'pdb']:
             show_menu = False
             lines = self._plugin._cortex.ipfs_get_file_contents(file['Hash']).split('\n')
             complex = getattr(nanome.api.structure.Complex.io, 'from_' + ext) (lines=lines)
             complex.name = file_name
-            self._plugin.add_to_workspace([complex])
-        # elif ext == 'pdf':
+            self._plugin.add_bonds([complex], self._plugin.add_to_workspace)
+        elif ext == 'cif':
+            show_menu = False
+            file_string = self._plugin._cortex.ipfs_get_file_contents(file['Hash'])
+            complex = nanome.api.structure.Complex.io.from_mmcif(string=file_string)
+            complex.name = file_name
+            self._plugin.add_bonds([complex], self._plugin.add_to_workspace)
 
         if show_menu:
             self._plugin.open_menu(self._menu_view_file)
