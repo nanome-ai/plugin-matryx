@@ -26,6 +26,12 @@ def time_until(the_time):
 def timestamp_to_date(timestamp):
     return datetime.fromtimestamp(timestamp).strftime('on %b %d, %Y at %I:%M %p')
 
+def date_to_timestamp(dt):
+    return diff_seconds(datetime.utcfromtimestamp(0), dt)
+
+def diff_seconds(dt1, dt2):
+    return int((dt2 - dt1).total_seconds())
+
 def file_size(size):
     units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
 

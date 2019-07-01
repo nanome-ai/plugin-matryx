@@ -68,8 +68,8 @@ class MatryxCortex():
     def get_submission(self, hash):
         return self.get_json('/submissions/%s' % hash)['submission']
 
-    def get_commits(self, owner):
-        return self.get_json('/commits/owner/' + owner)['commits']
+    def get_commits(self, owner, params=None):
+        return self.get_json('/commits/owner/' + owner, params)['commits']
 
     def get_commit(self, hash):
         return self.get_json('/commits/' + hash)['commit']

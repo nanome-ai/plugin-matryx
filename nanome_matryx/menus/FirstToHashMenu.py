@@ -49,12 +49,10 @@ class FirstToHashMenu():
         salt = utils.random_bytes()
         commit_hash = self._plugin._web3.solidity_sha3(['address', 'bytes32', 'string'], [sender, salt, ipfs_hash])
 
-        tx_hash = self._plugin._commit.claimCommit(commit_hash)
-        Logs.debug('claim tx ' + tx_hash)
+        tx_hash = self._plugin._web3._commit.claimCommit(commit_hash)
         self._plugin._web3.wait_for_tx(tx_hash)
 
-        tx_hash = self._plugin._commit.createCommit('0x' + '0' * 64, False, salt, ipfs_hash, 1)
-        Logs.debug('create tx ' + tx_hash)
+        tx_hash = self._plugin._web3._commit.createCommit('0x' + '0' * 64, False, salt, ipfs_hash, 1)
         self._plugin._web3.wait_for_tx(tx_hash)
 
         self._plugin._modal.show_message('Your work has been published to Matryx')

@@ -5,6 +5,8 @@ import nanome
 import utils
 from nanome.util import Logs
 
+from contracts.MatryxTournament import MatryxTournament
+
 from menus.select_winners.OptionsMenu import OptionsMenu
 
 from web3 import Web3, HTTPProvider
@@ -17,7 +19,7 @@ class SelectWinnersMenu():
         menu = nanome.ui.Menu.io.from_json('menus/json/select_winners/select_winners.json')
         menu.register_closed_callback(on_close)
 
-        self._menu_options = OptionsMenu(plugin, on_close)
+        self._menu_options = OptionsMenu(plugin, self, on_close)
 
         self._submissions_list = menu.root.find_node('Submissions List').get_content()
         self._prefab_submission_item = menu.root.find_node('Submission Item Prefab')
@@ -33,6 +35,8 @@ class SelectWinnersMenu():
     def load_tournament(self, tournament, button=None):
         self._tournament = tournament
         self._submissions_list.items = []
+
+        self._button_continue.unusable = True
 
         address, index = tournament['address'], tournament['round']['index']
         submissions = self._plugin._cortex.get_round(address, index)['submissions']
@@ -87,8 +91,30 @@ class SelectWinnersMenu():
             winnings = item.find_node('Winnings').get_content()
             winnings.text_value = mtx + ' MTX'
 
-            self._winners.append((mtx, item.submission['hash']))
+            self._winners.append((int(1e6 * amount), item.submission['hash']))
 
         self._button_continue.unusable = total == 0
 
         self._plugin.refresh_menu()
+
+    def select_winners(self, action, round_info=None):
+        tournament = MatryxTournament(self._plugin, self._tournament['address'])
+        bounty = self._plugin._web3.to_wei(self._tournament['balance'])
+
+        if action == 1 and bounty < round_info[3]:
+            self._plugin._modal.show_error('Tournament doesn\'t have enough funds to create round')
+            return
+
+        messages = [
+            'Selecting winners...',
+            'Selecting winners and starting next round...',
+            'Selecting winners and closing tournament...'
+        ]
+        self._plugin._modal.show_message(messages[action])
+
+        try:
+            tx_hash = tournament.select_winners(self._winners, action, round_info)
+            self._plugin._web3.wait_for_tx(tx_hash)
+            self._plugin._modal.show_message('Winner selection successful.')
+        except ValueError:
+            self._plugin._modal.show_error('winner selection failed.')

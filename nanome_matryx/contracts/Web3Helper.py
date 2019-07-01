@@ -5,6 +5,7 @@ from web3 import Web3, HTTPProvider, exceptions
 
 from contracts.MatryxToken import MatryxToken
 from contracts.MatryxPlatform import MatryxPlatform
+from contracts.MatryxCommit import MatryxCommit
 
 class Web3Helper():
     def __init__(self, plugin):
@@ -16,6 +17,7 @@ class Web3Helper():
     def setup(self):
         self._token = MatryxToken(self._plugin)
         self._platform = MatryxPlatform(self._plugin)
+        self._commit = MatryxCommit(self._plugin)
 
     def account_from_key(self, private_key):
         return self._web3.eth.account.privateKeyToAccount(private_key)
@@ -68,12 +70,21 @@ class Web3Helper():
         })
 
     def send_tx(self, fn):
-        account = self._plugin._account
-        signed_tx = account.signTransaction(self.create_tx(fn))
-        receipt = self._web3.eth.sendRawTransaction(signed_tx.rawTransaction)
-        return receipt.hex()
+        try:
+            account = self._plugin._account
+            signed_tx = account.signTransaction(self.create_tx(fn))
+            receipt = self._web3.eth.sendRawTransaction(signed_tx.rawTransaction)
+            tx_hash = receipt.hex()
+            Logs.debug("%s tx %s" % (fn.fn_name, tx_hash))
+            return tx_hash
+        except ValueError as err:
+            Logs.debug('%s tx revert, revert!' % fn.fn_name)
+            raise err
 
     def wait_for_tx(self, tx_hash, poll_interval=1):
+        if not tx_hash:
+            return None
+
         tx_receipt = None
         mined_block = None
 

@@ -84,7 +84,7 @@ class TournamentMenu():
             btn.register_pressed_callback(self._plugin._menu_creations.open_my_creations)
         elif is_owner and in_review:  # winner selection
             btn.set_all_text('select winners')
-            callback = partial(self._plugin._menu_select_winners.load_tournament, taco)
+            callback = partial(self._plugin._menu_select_winners.load_tournament, tournament)
             btn.register_pressed_callback(callback)
         else:
             self._button_action.enabled = False
@@ -155,38 +155,44 @@ class TournamentMenu():
         self._plugin.open_menu(self._menu_submit)
 
     def submit_to_tournament(self, commit_hash, button):
+        self._plugin.pop_menu_history(2)
+
         account = self._plugin._account.address
-
         is_entrant = self._contract.isEntrant(account)
-        if not is_entrant:
-            token = self._plugin._web3._token
 
-            entry_fee = self._tournament['entryFee']
-            balance = self._plugin._web3.get_mtx(account)
-            allowance = self._plugin._web3.get_allowance(account)
+        try:
+            if not is_entrant:
+                self._plugin._modal.show_message('Entering tournament...')
+                token = self._plugin._web3._token
 
-            if balance < entry_fee:
-                self._plugin._modal.show_error('Error: insufficient MTX balance')
-                return
-            elif allowance < entry_fee:
-                if allowance != 0:
-                    tx_hash = token.approve(self._web3._platform.address, 0)
-                    Logs.debug('reset allowance tx', tx_hash)
+                entry_fee = self._tournament['entryFee']
+                balance = self._plugin._web3.get_mtx(account)
+                allowance = self._plugin._web3.get_allowance(account)
+
+                if balance < entry_fee:
+                    self._plugin._modal.show_error('Error: insufficient MTX balance')
+                    return
+                elif allowance < entry_fee:
+                    if allowance != 0:
+                        tx_hash = token.approve(self._web3._platform.address, 0)
+                        self._plugin._web3.wait_for_tx(tx_hash)
+
+                    tx_hash = token.approve(self._web3._platform.address, entry_fee)
                     self._plugin._web3.wait_for_tx(tx_hash)
 
-                tx_hash = token.approve(self._web3._platform.address, entry_fee)
-                Logs.debug('set allowance tx', tx_hash)
+                tx_hash = self._contract.enter()
                 self._plugin._web3.wait_for_tx(tx_hash)
 
-            tx_hash = self._contract.enter()
-            Logs.debug('enter tx', tx_hash)
+            self._plugin._modal.show_message('Uploading title and description...')
+            title = self._menu_submit.root.find_node('Title Input').get_content().input_text
+            description = self._menu_submit.root.find_node('Description Input').get_content().input_text
+            ipfs_hash = self._plugin._cortex.upload_json({'title': title, 'description': description})
+
+            self._plugin._modal.show_message('Submitting to tournament...')
+            tx_hash = self._contract.create_submission(ipfs_hash, commit_hash)
             self._plugin._web3.wait_for_tx(tx_hash)
 
-        title = self._menu_submit.root.find_node('Title Input').get_content().input_text
-        description = self._menu_submit.root.find_node('Description Input').get_content().input_text
-        ipfs_hash = self._plugin._cortex.upload_json({'title': title, 'description': description})
-
-        tx_hash = self._contract.create_submission(ipfs_hash, commit_hash)
-        Logs.debug('create tx', tx_hash)
-        self._plugin._web3.wait_for_tx(tx_hash)
+            self._plugin._modal.show_message('Submitted!')
+        except ValueError:
+            self._plugin._modal.show_error('submission creation failed :(')
 

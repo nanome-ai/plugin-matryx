@@ -20,8 +20,6 @@ from menus.select_winners.SelectWinnersMenu import SelectWinnersMenu
 from menus.Modal import Modal
 from menus.Confirm import Confirm
 
-from contracts.MatryxCommit import MatryxCommit
-
 import web3
 import blockies
 
@@ -37,8 +35,6 @@ class Matryx(nanome.PluginInstance):
         self._cortex = MatryxCortex('https://cortex-staging.matryx.ai')
         self._web3 = Web3Helper(self)
         self._web3.setup()
-
-        self._commit = MatryxCommit(self)
 
         self._menu_files = FilesMenu(self, self.previous_menu)
         self._menu_accounts = AccountsMenu(self, self.previous_menu)
@@ -69,7 +65,11 @@ class Matryx(nanome.PluginInstance):
         self._button_my_tournaments.register_pressed_callback(self.populate_my_tournaments)
 
         self._button_my_creations = menu.root.find_node('My Creations').get_content()
-        self._button_my_creations.register_pressed_callback(self.populate_my_creations)
+        self._button_my_creations.register_pressed_callback(partial(self.populate_my_creations, 0))
+
+        self._label_page = menu.root.find_node('Page Label').get_content()
+        self._button_inc_page = menu.root.find_node('Inc Page').get_content()
+        self._button_dec_page = menu.root.find_node('Dec Page').get_content()
 
         self._prefab_tournament_item = menu.root.find_node('Tournament Item Prefab')
         self._prefab_commit_item = menu.root.find_node('Commit Item Prefab')
@@ -114,6 +114,10 @@ class Matryx(nanome.PluginInstance):
         else:
             self.open_menu(self._menu_history[-1], False)
 
+    def pop_menu_history(self, n=1):
+        for i in range(n):
+            self._menu_history.pop()
+
     def refresh_menu(self):
         self.update_menu(self.menu)
 
@@ -129,14 +133,18 @@ class Matryx(nanome.PluginInstance):
         self._list_node.enabled = True
         self._error_message.enabled = False
 
-    def update_account(self, account, button=None):
+    def select_account(self, account, button=None):
         self._account = account
         self._button_account.text.value_idle = account.short_address
         self._account_blockie.add_new_image(account.blockie)
-        self._account_eth.text_value = utils.truncate(self._web3.get_eth(account.address)) + ' ETH'
-        self._account_mtx.text_value = utils.truncate(self._web3.get_mtx(account.address)) + ' MTX'
+        self.update_account()
         self._menu_history.pop()
         self.open_matryx_menu()
+
+    def update_account(self):
+        account = self._account
+        self._account_eth.text_value = utils.truncate(self._web3.get_eth(account.address)) + ' ETH'
+        self._account_mtx.text_value = utils.truncate(self._web3.get_mtx(account.address)) + ' MTX'
 
     def check_account(self):
         if self._account:
@@ -158,26 +166,27 @@ class Matryx(nanome.PluginInstance):
 
         active_tab.selected = True
 
-    def list_create_button(self, callback):
+    def add_button_to_list(self, text, callback):
         clone = self._prefab_commit_item.clone()
-        btn_create = clone.get_content()
-        btn_create.set_all_text('+')
-        btn_create.bolded = True
+        btn = clone.get_content()
+        btn.set_all_text(text)
+        btn.bolded = True
 
-        btn_create.register_pressed_callback(callback)
+        btn.register_pressed_callback(callback)
         self._list.items.append(clone)
 
-    def populate_tournaments(self, status='open', mine=False):
+    def populate_tournaments(self, offset=0, status='open', mine=False, button=None):
         params = {
-            'offset': 0,
+            'offset': offset,
             'sortBy': 'round_end',
             'status': status
         }
 
         self._list.items = []
         if mine:
+            del params['status']
             params['owner'] = self._account.address
-            self.list_create_button(self._menu_create_tournament.clear_and_open)
+            self.add_button_to_list('+', self._menu_create_tournament.clear_and_open)
 
         tournaments = self._cortex.get_tournaments(params)
 
@@ -198,28 +207,38 @@ class Matryx(nanome.PluginInstance):
             bounty.text_value = str(tournament['bounty']) + ' MTX'
             self._list.items.append(clone)
 
+        count = len(tournaments)
+        self._label_page.text_value = "Page %d" % int(offset / 12 + 1)
+
+        self._button_dec_page.unusable = offset == 0
+        cb = lambda x: self.populate_tournaments(offset - 12, status, mine, button)
+        self._button_dec_page.register_pressed_callback(cb)
+
+        self._button_inc_page.unusable = count < 12
+        cb = lambda x: self.populate_tournaments(offset + 12, status, mine, button)
+        self._button_inc_page.register_pressed_callback(cb)
+
+        self.toggle_tab(button)
+        self.refresh_menu()
+
     def populate_all_tournaments(self, button=None):
         if button == None:
             button = self._button_all_tournaments
 
         self.clear_error()
-        self.populate_tournaments()
-        self.toggle_tab(button)
-        self.refresh_menu()
+        self.populate_tournaments(button=button)
 
     def populate_my_tournaments(self, button=None):
         if button == None:
             button = self._button_my_tournaments
 
-        self.toggle_tab(button)
-
         if not self.check_account():
+            self.toggle_tab(button)
             return
 
-        self.populate_tournaments(mine=True)
-        self.refresh_menu()
+        self.populate_tournaments(mine=True, button=button)
 
-    def populate_my_creations(self, button=None):
+    def populate_my_creations(self, offset=0, button=None):
         if button == None:
             button = self._button_my_tournaments
 
@@ -229,9 +248,11 @@ class Matryx(nanome.PluginInstance):
             return
 
         self._list.items = []
-        self.list_create_button(self._menu_first_to_hash.display_selected)
+        self.add_button_to_list('+', self._menu_first_to_hash.display_selected)
 
-        commits = self._cortex.get_commits(self._account.address)
+        params = { 'offset': offset }
+        commits = self._cortex.get_commits(self._account.address, params)
+
         for commit in commits:
             clone = self._prefab_commit_item.clone()
             btn = clone.get_content()
@@ -241,6 +262,17 @@ class Matryx(nanome.PluginInstance):
             btn.register_pressed_callback(callback)
 
             self._list.items.append(clone)
+
+        count = len(commits)
+        self._label_page.text_value = "Page %d" % int(count / 24 + 1)
+
+        self._button_dec_page.unusable = offset == 0
+        cb = partial(self.populate_my_creations, offset - 24)
+        self._button_dec_page.register_pressed_callback(cb)
+
+        self._button_inc_page.unusable = count < 24
+        cb = partial(self.populate_my_creations, offset + 24)
+        self._button_inc_page.register_pressed_callback(cb)
 
         self.refresh_menu()
 

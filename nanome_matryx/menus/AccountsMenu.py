@@ -57,7 +57,7 @@ class AccountsMenu():
             account_item.enabled = True
 
             button = account_item.get_content()
-            button.register_pressed_callback(partial(self._plugin.update_account, account))
+            button.register_pressed_callback(partial(self._plugin.select_account, account))
 
             account_item.find_node('Blockie').add_new_image(filepath)
             account_item.find_node('Address').get_content().text_value = short_address
