@@ -19,15 +19,16 @@ class SelectWinnersMenu():
         menu = nanome.ui.Menu.io.from_json('menus/json/select_winners/select_winners.json')
         menu.register_closed_callback(on_close)
 
+
         self._menu_options = OptionsMenu(plugin, self, on_close)
 
-        self._submissions_list = menu.root.find_node('Submissions List').get_content()
-        self._prefab_submission_item = menu.root.find_node('Submission Item Prefab')
+        self._menu = menu
 
         self._button_continue = menu.root.find_node('Continue').get_content()
         self._button_continue.register_pressed_callback(self._menu_options.show_menu)
 
-        self._menu = menu
+        self._submissions_list = menu.root.find_node('Submissions List').get_content()
+        self._prefab_submission_item = menu.root.find_node('Submission Item Prefab')
 
         self._tournament = None
         self._winners = []
@@ -57,7 +58,7 @@ class SelectWinnersMenu():
 
             icon = clone.find_node('Icon')
             icon.enabled = False
-            icon.add_new_image(os.path.join(os.path.dirname(__file__), '../../checkmark.png'))
+            icon.add_new_image(os.path.join(os.path.dirname(__file__), '..', 'images', 'checkmark.png'))
 
             self._submissions_list.items.append(clone)
 

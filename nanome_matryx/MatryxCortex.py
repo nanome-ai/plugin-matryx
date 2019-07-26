@@ -6,11 +6,13 @@ import requests
 import shutil
 
 class MatryxCortex():
-    def __init__(self, url):
-        self._url = url
-        self._artifacts = self.get_artifacts()
-
+    def __init__(self):
         self._ipfs_url = 'https://ipfs.infura.io:5001/api/v0/'
+
+    def set_network(self, network):
+        network_suffix = '{}'.format('-'+network if network != 'mainnet' else '')
+        self._url = 'https://cortex{}.matryx.ai'.format(network_suffix)
+        self._artifacts = self.get_artifacts()
 
     def ipfs_list_dir(self, ipfs_hash):
         url = self._ipfs_url + 'object/get?arg=' + ipfs_hash
@@ -42,7 +44,7 @@ class MatryxCortex():
     def upload_files(self, paths):
         files = []
         for path in paths:
-            files.append(("files", open(path, 'rb')))
+            files.append(('files', open(path, 'rb')))
 
         response = requests.post(self._url + '/upload/files', files=files)
         ipfs_hash = response.json()['data']['hash']

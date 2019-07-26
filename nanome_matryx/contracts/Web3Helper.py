@@ -11,10 +11,12 @@ class Web3Helper():
     def __init__(self, plugin):
         self._plugin = plugin
 
-        self._provider = HTTPProvider('https://ropsten.infura.io/v3/2373e82fc83341ff82b66c5a87edd5f5')
+    def set_network(self, network):
+        provider_url = 'https://{}.infura.io/v3/2373e82fc83341ff82b66c5a87edd5f5'.format(network)
+        self._provider = HTTPProvider(provider_url)
         self._web3 = Web3(self._provider)
+        self._plugin._cortex.set_network(network)
 
-    def setup(self):
         self._token = MatryxToken(self._plugin)
         self._platform = MatryxPlatform(self._plugin)
         self._commit = MatryxCommit(self._plugin)
@@ -65,7 +67,7 @@ class Web3Helper():
         return fn.buildTransaction({
             'from': caller,
             'gas': gas,
-            'gasPrice': self.to_wei('4', 'gwei'),
+            'gasPrice': self.to_wei(self._plugin._menu_settings._gas_price, 'gwei'),
             'nonce': nonce
         })
 
@@ -75,7 +77,7 @@ class Web3Helper():
             signed_tx = account.signTransaction(self.create_tx(fn))
             receipt = self._web3.eth.sendRawTransaction(signed_tx.rawTransaction)
             tx_hash = receipt.hex()
-            Logs.debug("%s tx %s" % (fn.fn_name, tx_hash))
+            Logs.debug('%s tx %s' % (fn.fn_name, tx_hash))
             return tx_hash
         except ValueError as err:
             Logs.debug('%s tx revert, revert!' % fn.fn_name)

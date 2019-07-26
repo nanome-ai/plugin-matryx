@@ -1,4 +1,5 @@
 import os
+import json
 from functools import partial
 
 import nanome
@@ -18,6 +19,11 @@ class AccountsMenu():
         self._accounts_list = menu.root.find_node('Accounts List').get_content()
         self._prefab_account_item = menu.root.find_node('Account Item Prefab')
 
+        self._info = menu.root.find_node('Info')
+        self._info.get_content().text_value = "Account private keys are loaded from \n/path/to/file\n If you don't see any accounts here, please add your key to \n/path/to/file"
+
+        self._wallet_json = ''
+
         self._menu = menu
 
     def show_menu(self, button):
@@ -27,12 +33,19 @@ class AccountsMenu():
             self.populate_accounts()
 
     def load_private_keys(self):
-        return [
-            # dev mnemonic accounts from MatryxPlatform
-            '0x2c22c05cb1417cbd17c57c1bd0f50142d8d7884984e07b2d272c24c6e120a9ea', # daa
-            '0x67a8bc7c12985775e9ab2b1bc217a9c4eff822f93a6f388021e30431d26cb3d3', # ecc
-            '0x42811f2725f3c7a7608535fba191ea9a167909883f1e76e038c3168446fbc1bc'  # 8ad
-        ]
+        Logs.debug(self._wallet_json)
+        try:
+            wallet = json.loads(self._wallet_json)
+            Logs.debug('wallet: ' + str(wallet))
+            if 'keys' in wallet:
+                return wallet['keys']
+            else:
+                Logs.debug("here")
+                self._plugin._modal.show_error('Wallet uninitialized. Visit blog.matryx.ai for more info')
+                return ''
+        except:
+            self._plugin._modal.show_error('Wallet uninitialized. Visit blog.matryx.ai for more info')
+            return ''
 
     def populate_accounts(self):
         keys = self.load_private_keys()

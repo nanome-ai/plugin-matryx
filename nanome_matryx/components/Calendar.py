@@ -115,7 +115,7 @@ class Calendar:
     def set_date(self, dt, button):
         time = self._datetime.time()
         self._datetime = datetime.combine(dt.date(), time)
-        self._input_month_year.input_text = self._datetime.strftime("%B %Y")
+        self._input_month_year.input_text = self._datetime.strftime('%B %Y')
 
         self.update_datetime(True)
 
@@ -188,7 +188,7 @@ class Calendar:
         update_buttons |= dt != self._datetime
         self._datetime = dt
 
-        self._input_month_year.input_text = dt.strftime("%B %Y")
+        self._input_month_year.input_text = dt.strftime('%B %Y')
         self._input_hour.input_text = dt.strftime('%I')
         self._input_min.input_text = dt.strftime('%M')
         self._label_AM_PM.text_value = dt.strftime('%p')

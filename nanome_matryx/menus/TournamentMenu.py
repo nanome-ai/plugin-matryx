@@ -22,6 +22,7 @@ class TournamentMenu():
         self._author = menu.root.find_node('Author').get_content()
 
         self._bounty = menu.root.find_node('Bounty').get_content()
+        self._entry_fee = menu.root.find_node('Entry Fee').get_content()
         self._time_remaining = menu.root.find_node('Time Remaining').get_content()
         self._description = menu.root.find_node('Description').get_content()
 
@@ -67,32 +68,37 @@ class TournamentMenu():
 
         self._author.text_value = 'by ' + utils.short_address(tournament['owner'])
         self._bounty.text_value = '%d MTX' % tournament['bounty']
+        self._entry_fee.text_value = '%d MTX' % tournament['entryFee']
 
         ipfs_hash = tournament['ipfsFiles']
         self._button_view_files.enabled = ipfs_hash != ''
         callback = partial(self._plugin._menu_files.load_files, ipfs_hash)
         self._button_view_files.get_content().register_pressed_callback(callback)
 
-        is_owner = self._plugin._account != None and tournament['owner'] == self._plugin._account.address.lower()
+        end_date = datetime.fromisoformat(tournament['round']['endDate'].replace('Z', '+00:00'))
+        time_remaining = utils.time_until(end_date)
+        time_remaining = time_remaining + ' remaining' if time_remaining != '' else 'tournament closed'
+        self._time_remaining.text_value = time_remaining
+
+        account_selected = self._plugin._account != None
+        is_owner = account_selected and tournament['owner'] == self._plugin._account.address.lower()
         in_review = tournament['round']['status'] == 'review'
-        can_submit = not is_owner and tournament['round']['status'] == 'open'
+        can_submit = account_selected and not is_owner and tournament['round']['status'] == 'open'
         self._button_action.enabled = True
         btn = self._button_action.get_content()
 
-        if can_submit:
+        if not account_selected:
             btn.set_all_text('create submission')
-            btn.register_pressed_callback(self._plugin._menu_creations.open_my_creations)
+            btn.register_pressed_callback(self._plugin._menu_accounts.show_menu)
+        elif can_submit:
+            btn.set_all_text('create submission')
+            btn.register_pressed_callback(self._plugin._menu_creations.open_create_submission)
         elif is_owner and in_review:  # winner selection
             btn.set_all_text('select winners')
             callback = partial(self._plugin._menu_select_winners.load_tournament, tournament)
             btn.register_pressed_callback(callback)
         else:
             self._button_action.enabled = False
-
-        end_date = datetime.fromisoformat(tournament['round']['endDate'].replace('Z', '+00:00'))
-        time_remaining = utils.time_until(end_date)
-        time_remaining = time_remaining + ' remaining' if time_remaining != '' else 'tournament closed'
-        self._time_remaining.text_value = time_remaining
 
         self.display_round(tournament['round'])
 

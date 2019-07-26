@@ -1,3 +1,5 @@
+import os
+
 import requests
 from functools import partial
 
@@ -11,7 +13,7 @@ class CreationMenu:
 
         menu_creation = nanome.ui.Menu.io.from_json('menus/json/creation.json')
         menu_creation.register_closed_callback(on_close)
-        self._menu_creation = menu_creation
+        self._menu = menu_creation
 
         self._button_parent = menu_creation.root.find_node('Parent Button')
         self._button_parent.enabled = False
@@ -19,6 +21,7 @@ class CreationMenu:
         self._commit_author = menu_creation.root.find_node('Commit Author').get_content()
         self._commit_date = menu_creation.root.find_node('Commit Date').get_content()
         self._button_withdraw = menu_creation.root.find_node('Withdraw Button')
+        self._icon_withdraw = menu_creation.root.find_node('Withdraw Icon')
         self._files_list = menu_creation.root.find_node('Files List').get_content()
         self._child_list = menu_creation.root.find_node('Child List').get_content()
         self._prefab_list_item = menu_creation.root.find_node('List Item Prefab')
@@ -31,7 +34,7 @@ class CreationMenu:
         self.load_children(commit)
         self.setup_withdraw_button(commit)
 
-        self._plugin.open_menu(self._menu_creation)
+        self._plugin.open_menu(self._menu)
 
     def populate_header(self, commit):
         self._commit_name.text_value = commit['hash'][2:10]
@@ -70,8 +73,9 @@ class CreationMenu:
         user = self._plugin._account.address
         mtx = self._plugin._web3._commit.getAvailableRewardForUser(commit['hash'], user)
 
+        self._icon_withdraw.add_new_image(os.path.join(os.path.dirname(__file__), '..', 'images', 'withdrawMTX.png'))
         self._button_withdraw.enabled = mtx > 0
-        self._button_withdraw.get_content().set_all_text("withdraw %s MTX" % utils.truncate(mtx))
+        self._button_withdraw.get_content().set_all_text('\n\n\n\nReward Available \n %s MTX' % utils.truncate(mtx))
 
         def cb(b):
             self._button_withdraw.enabled = False

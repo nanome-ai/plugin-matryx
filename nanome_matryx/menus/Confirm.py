@@ -12,7 +12,7 @@ class Confirm:
         self._button_cancel.register_pressed_callback(on_close)
         self._button_confirm = self._menu.root.find_node('Yes').get_content()
 
-    def open_menu(self, text, callback):
+    def show_menu(self, text, callback):
         self._description.text_value = text
         cb = lambda btn: callback()
         self._button_confirm.register_pressed_callback(cb)

@@ -5,7 +5,7 @@ import utils
 from nanome.util import Logs
 
 class CreationsMenu():
-    def __init__(self, plugin, on_close):
+    def __init__(self, plugin, fth_menu, on_close):
         self._plugin = plugin
 
         menu = nanome.ui.Menu.io.from_json('menus/json/my_creations.json')
@@ -15,32 +15,41 @@ class CreationsMenu():
         self._creation_menu = nanome.ui.Menu.io.from_json('menus/json/creation.json')
         self._creation_menu.register_closed_callback(on_close)
 
-        self._list = menu.root.find_node('List').get_content()
+        menu.root.find_node('First To Hash').add_child(fth_menu._menu.root)
+        self._commit_list = menu.root.find_node('Commit List').get_content()
+
+        self._fth_menu = fth_menu
+        self._fth_menu.use_as_component()
 
         self._prefab_commit_item = menu.root.find_node('Prefab Commit Item')
 
-    def open_my_creations(self, button):
+    def populate_my_creations(self):
         commits = self._plugin._cortex.get_commits(self._plugin._account.address)
-        self._list.items = []
-
+        self._commit_list.items = []
         for commit in commits:
             clone = self._prefab_commit_item.clone()
             clone.find_node('Label').get_content().text_value = 'Commit ' + commit['hash'][2:10]
 
-            btn = clone.get_content()
+            btn = clone.find_node('View').get_content()
             btn.register_pressed_callback(partial(self.open_creation_menu, commit['hash']))
-
             btn = clone.find_node('Submit').get_content()
             callback = partial(self._plugin._menu_tournament.open_submit_menu, commit['hash'])
             btn.register_pressed_callback(callback)
 
-            self._list.items.append(clone)
+            self._commit_list.items.append(clone)
 
+    def open_my_creations(self, button):
+        self.populate_my_creations()
+        self._plugin.open_menu(self._menu)
+
+    def open_create_submission(self, button):
+        self.populate_my_creations()
+        self._fth_menu.display_selected(True, button)
         self._plugin.open_menu(self._menu)
 
     def open_creation_menu(self, commit_hash, button):
         commit = self._plugin._cortex.get_commit(commit_hash)
-
+        # TODO: Why is this crashing?
         address = self._creation_menu.root.find_node('Address').get_content()
         address.text_value = 'Commit ' + commit['hash'][2:10]
 

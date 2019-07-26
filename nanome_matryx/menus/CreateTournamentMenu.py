@@ -15,39 +15,39 @@ class CreateTournamentMenu:
         self._plugin = _plugin
         menu_create_tournament = nanome.ui.Menu.io.from_json('menus/json/create_tournament.json')
         menu_create_tournament.register_closed_callback(on_close)
-        self._menu_create_tournament = menu_create_tournament
+        self._menu = menu_create_tournament
 
-        self._button_create = self._menu_create_tournament.root.find_node('Create').get_content()
+        self._button_create = self._menu.root.find_node('Create').get_content()
         self._button_create.register_pressed_callback(self.create_tournament)
-        self._button_cancel = self._menu_create_tournament.root.find_node('Cancel').get_content()
+        self._button_cancel = self._menu.root.find_node('Cancel').get_content()
         self._button_cancel.register_pressed_callback(on_close)
 
-        self._input_title = self._menu_create_tournament.root.find_node('Title Input').get_content()
+        self._input_title = self._menu.root.find_node('Title Input').get_content()
         self._input_title.register_submitted_callback(partial(self.limit_bad_input, False, 90))
-        self._input_description = self._menu_create_tournament.root.find_node('Description Input').get_content()
+        self._input_description = self._menu.root.find_node('Description Input').get_content()
         self._input_description.register_submitted_callback(partial(self.limit_bad_input, False, 100))
-        self._input_bounty = self._menu_create_tournament.root.find_node('Bounty Input').get_content()
-        self._input_entry_fee = self._menu_create_tournament.root.find_node('Entry Fee Input').get_content()
-        self._input_round_bounty = self._menu_create_tournament.root.find_node('Round Bounty Input').get_content()
+        self._input_bounty = self._menu.root.find_node('Bounty Input').get_content()
+        self._input_entry_fee = self._menu.root.find_node('Entry Fee Input').get_content()
+        self._input_round_bounty = self._menu.root.find_node('Round Bounty Input').get_content()
 
-        left_container = self._menu_create_tournament.root.find_node('Start Cal Container')
+        left_container = self._menu.root.find_node('Start Cal Container')
         self._calendar_start = Calendar(_plugin, left_container)
         self._calendar_start.register_changed_callback(partial(self.update_datetime, True))
 
-        right_container = self._menu_create_tournament.root.find_node('End Cal Container')
+        right_container = self._menu.root.find_node('End Cal Container')
         self._calendar_end = Calendar(_plugin, right_container)
         self._calendar_end.register_changed_callback(partial(self.update_datetime, False))
 
     def clear_and_open(self, button):
-        self._input_title.input_text = 'Create a Small Molecule'
-        self._input_description.input_text = 'Create a small molecule de novo'
+        self._input_title.input_text = ''
+        self._input_description.input_text = ''
         self._input_bounty.input_text = ''
         self._input_entry_fee.input_text = ''
         self._input_round_bounty.input_text = ''
 
         self.reset_datetime_pickers()
 
-        self._plugin.open_menu(self._menu_create_tournament)
+        self._plugin.open_menu(self._menu)
 
     def create_tournament(self, button):
         if not self.validate_all():

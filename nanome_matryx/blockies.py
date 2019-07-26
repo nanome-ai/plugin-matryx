@@ -47,11 +47,11 @@ class Context:
         s = ((self.rand() * 60) + 40)
         l = ((self.rand() + self.rand() + self.rand() + self.rand()) * 25)
         # round percentages as PIL doesn't like them
-        hsl = "hsl({},{}%,{}%)".format(h, round(s), round(l))
+        hsl = 'hsl({},{}%,{}%)'.format(h, round(s), round(l))
         try:
             return ImageColor.getrgb(hsl)
         except:
-            log.exception("produced invalid color: {}".format(hsl))
+            log.exception('produced invalid color: {}'.format(hsl))
             return (0, 0, 0)
 
     def create_image_data(self, size):
@@ -109,4 +109,4 @@ def create(seed=None, color=None, bgcolor=None, size=DEFAULT_SIZE, scale=DEFAULT
     return stream.getvalue()
 
 def png_to_data_uri(data):
-    return "data:image/png;base64,{}".format(base64.b64encode(data).decode('ascii'))
+    return 'data:image/png;base64,{}'.format(base64.b64encode(data).decode('ascii'))

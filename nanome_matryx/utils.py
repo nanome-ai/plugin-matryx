@@ -8,7 +8,7 @@ def short_address(address):
     return address[:6] + '...' + address[-4:]
 
 def random_bytes():
-    return "0x%064x" % random.randrange(2**256)
+    return '0x%064x' % random.randrange(2**256)
 
 def time_until(the_time):
     time = (the_time - datetime.now(timezone.utc)).total_seconds()
